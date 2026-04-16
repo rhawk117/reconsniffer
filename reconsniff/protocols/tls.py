@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from reconsniff.models.core import PacketContext, PacketKind, ParsedEvent
 from reconsniff.models.tls import (
     TlsCertificateRecord,
@@ -12,6 +10,7 @@ from reconsniff.protocols.base import BaseParser
 def parse_tls_record_header(payload_bytes: bytes) -> tuple[int, int, int] | None:
     if len(payload_bytes) < 5:
         return None
+
     content_type = payload_bytes[0]
     version = int.from_bytes(payload_bytes[1:3], byteorder='big')
     record_length = int.from_bytes(payload_bytes[3:5], byteorder='big')
@@ -21,6 +20,7 @@ def parse_tls_record_header(payload_bytes: bytes) -> tuple[int, int, int] | None
 def parse_tls_handshake_header(payload_bytes: bytes) -> tuple[int, int] | None:
     if len(payload_bytes) < 4:
         return None
+
     handshake_type = payload_bytes[0]
     handshake_length = int.from_bytes(payload_bytes[1:4], byteorder='big')
     return handshake_type, handshake_length

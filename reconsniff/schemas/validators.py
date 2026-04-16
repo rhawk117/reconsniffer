@@ -1,6 +1,6 @@
 import argparse
 import ipaddress
-from typing import Literal, get_args
+from typing import Literal
 
 type LogLevelNames = Literal[
     'TRACE',
@@ -11,6 +11,16 @@ type LogLevelNames = Literal[
     'ERROR',
     'CRITICAL',
 ]
+
+_VALID_LOG_LEVELS: frozenset[str] = frozenset({
+    'TRACE',
+    'DEBUG',
+    'INFO',
+    'SUCCESS',
+    'WARNING',
+    'ERROR',
+    'CRITICAL',
+})
 
 
 def validate_port_number(value: str) -> int:
@@ -25,16 +35,13 @@ def validate_ip_address(value: str) -> str:
         ipaddress.ip_address(value)
     except ValueError as exc:
         raise argparse.ArgumentTypeError(f'invalid ip address: {value}') from exc
-
     return value
 
 
 def validate_log_level(value: str) -> str:
     value = value.upper()
-    valid_names = get_args(LogLevelNames)
-    if value not in valid_names:
+    if value not in _VALID_LOG_LEVELS:
         raise argparse.ArgumentTypeError(
-            f'invalid log level name: {value}, expected one of {",".join(valid_names)}'
+            f'invalid log level: {value!r}, expected one of {", ".join(sorted(_VALID_LOG_LEVELS))}'
         )
     return value
-

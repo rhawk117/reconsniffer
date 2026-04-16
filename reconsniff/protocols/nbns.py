@@ -28,8 +28,12 @@ class NbnsParser(BaseParser):
             node_status_names=(),
         )
 
+        summary = (
+            f'NBNS response={record.is_response} opcode={record.opcode} '
+            f'rcode={record.rcode}'
+        )
         return ParsedEvent(
             kind=self.kind,
-            summary=f'NBNS response={record.is_response} opcode={record.opcode} rcode={record.rcode}',
+            summary=summary,
             data=record,
         )

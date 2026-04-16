@@ -1,3 +1,4 @@
+from typing import Any
 
 from scapy.layers.dhcp import BOOTP, DHCP
 from scapy.layers.dhcp6 import DHCP6
@@ -19,7 +20,7 @@ class Dhcpv4Parser(BaseParser):
         bootp_layer = context.raw_packet[BOOTP]
         dhcp_layer = context.raw_packet[DHCP]
 
-        options: dict[str, object] = {}
+        options: dict[str, Any] = {}
         for option in getattr(dhcp_layer, 'options', []):
             if isinstance(option, tuple) and len(option) >= 2:
                 options[str(option[0])] = option[1]

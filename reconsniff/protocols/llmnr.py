@@ -27,7 +27,10 @@ class LlmnrParser(BaseParser):
         )
 
         first_name = queried_names[0] if queried_names else '<none>'
-        summary = f'LLMNR q={first_name} response={dns_record.is_response} rcode={dns_record.rcode}'
+        summary = (
+            f'LLMNR q={first_name} response={dns_record.is_response} '
+            f'rcode={dns_record.rcode}'
+        )
 
         return ParsedEvent(
             kind=self.kind,

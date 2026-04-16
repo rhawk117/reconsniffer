@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from reconsniff.models.core import PacketContext, PacketKind, ParsedEvent
 from reconsniff.models.discovery import SsdpRecord
 from reconsniff.protocols.base import BaseParser

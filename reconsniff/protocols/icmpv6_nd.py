@@ -103,8 +103,13 @@ class Icmpv6NdParser(BaseParser):
             options=tuple(options),
         )
 
+        summary = (
+            f'ICMPv6 ND type={record.icmpv6_type} src={record.source_ipv6} '
+            f'target={record.target_ipv6}'
+        )
+
         return ParsedEvent(
             kind=self.kind,
-            summary=f'ICMPv6 ND type={record.icmpv6_type} src={record.source_ipv6} target={record.target_ipv6}',
+            summary=summary,
             data=record,
         )
