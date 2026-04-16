@@ -31,3 +31,4 @@ TOOL_EPILOG = (
     f"  {TOOL_NAME} --mdns-multicast-ipv4 224.0.0.251 "
     "--ssdp-multicast-ipv4 239.255.255.250\n"
 )
+TOOL_VERSION = '1.0.0'

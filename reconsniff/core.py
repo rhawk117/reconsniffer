@@ -25,13 +25,6 @@ from scapy.sendrecv import AsyncSniffer
 from reconsniff import constant
 
 
-TOOL_NAME = "reconsniff"
-TOOL_DESCRIPTION = (
-    "capture dns, mdns, and ssdp discovery traffic with rich console output "
-    "and structured loguru file logging."
-)
-TOOL_AUTHOR = "rhawk117"
-
 
 @dataclass(slots=True, frozen=True)
 class CaptureConfig:
@@ -244,7 +237,6 @@ class CaptureRuntime:
     sniffer : AsyncSniffer | None
         active scapy sniffer instance.
     """
-
     config: CaptureConfig
     console: Console = field(default_factory=lambda: Console(soft_wrap=True))
     stats: CaptureStats = field(default_factory=CaptureStats)
@@ -293,7 +285,7 @@ def create_argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--version",
         action="version",
-        version="%(prog)s 0.1.0",
+        version=f"{constant.TOOL_NAME} {constant.TOOL_VERSION}",
     )
 
     capture_group = parser.add_argument_group("capture options")
