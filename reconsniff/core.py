@@ -6,7 +6,7 @@ import signal
 import time
 from contextlib import suppress
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from ipaddress import ip_address
 from pathlib import Path
 from typing import Any
@@ -19,10 +19,17 @@ from rich.text import Text
 from scapy.layers.dns import DNS
 from scapy.layers.inet import IP, UDP
 from scapy.layers.inet6 import IPv6
-from scapy.packet import Raw
+from scapy.packet import Packet, Raw
 from scapy.sendrecv import AsyncSniffer
 
 from reconsniff import constant
+
+
+@dataclass(slots=True, frozen=True)
+class CapturePorts:
+    dns: int = 53
+    mdns: int = 5353
+    upnp: int = 1900
 
 
 
@@ -279,7 +286,6 @@ def create_argparser() -> argparse.ArgumentParser:
         prog=constant.TOOL_NAME,
         description=constant.TOOL_DESCRIPTION,
         epilog=constant.TOOL_EPILOG,
-        formatter_class=argparse.RawTextHelpFormatter,
     )
 
     parser.add_argument(
@@ -787,7 +793,7 @@ def direction_label(
 
 def parse_dns_event(
     config: CaptureConfig,
-    packet: Any,
+    packet: Packet,
     protocol: str,
     source: Endpoint,
     destination: Endpoint,
@@ -1078,7 +1084,7 @@ def now_iso() -> str:
     str
         iso-formatted local timestamp.
     """
-    return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+    return datetime.now(UTC).astimezone().isoformat(timespec='seconds')
 
 
 def run_tool() -> int:
