@@ -1,0 +1,11 @@
+[project]
+name = "reconsniffer"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "loguru>=0.7.3",
+    "rich>=15.0.0",
+    "scapy>=2.7.0",
+]
