@@ -1,40 +1,24 @@
-import dataclasses as dc
-from typing import TYPE_CHECKING, ClassVar, Protocol
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from reconsniff.protocols.records import PacketContext, PacketKind, ParsedEvent
+    from reconsniff.models.core import PacketContext, PacketKind, ParsedEvent
 
 
-class PacketAdapter(Protocol):
-    kind: ClassVar[PacketKind]
+class ProtocolAdapter(Protocol):
+    kind: PacketKind
 
     def matches(self, context: PacketContext) -> bool: ...
 
     def parse(self, context: PacketContext) -> ParsedEvent: ...
 
 
-@dc.dataclass(slots=True)
-class ParserRegistry:
-    adapters: list[PacketAdapter] = dc.field(default_factory=list)
+@dataclass(slots=True)
+class BaseParser:
+    """Small shared base for parser classes."""
 
-    def register(self, parser: PacketAdapter) -> None:
-        self.adapters.append(parser)
-
-    def register_all(self, *adapters: PacketAdapter) -> None:
-        self.adapters.extend(adapters)
-
-    def parse_first(self, context: PacketContext) -> ParsedEvent | None:
-        for parser in self.adapters:
-            if not parser.matches(context):
-                continue
-            return parser.parse(context)
-        return None
-
-    def parse_all(self, context: PacketContext) -> list[ParsedEvent]:
-        events: list[ParsedEvent] = []
-        for parser in self.adapters:
-            if not parser.matches(context):
-                continue
-            events.append(parser.parse(context))
-
-        return events
+    def require(self, condition: bool, message: str) -> None:
+        if not condition:
+            raise ValueError(message)
