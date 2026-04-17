@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from scapy.layers.dns import DNS, DNSQR, DNSRR
 from scapy.packet import Packet
 
@@ -56,14 +54,17 @@ def iter_dns_records(head: DNSRR | None, count: int) -> tuple[DnsResourceRecord,
     for _ in range(count):
         if not isinstance(current, DNSRR):
             break
-        records.append(DnsResourceRecord(
-            name=normalize_name(getattr(current, 'rrname', b'')),
-            rtype=int(getattr(current, 'type', 0)),
-            rclass=int(getattr(current, 'rclass', 0)),
-            ttl=int(getattr(current, 'ttl', 0))
-                if getattr(current, 'ttl', None) is not None else None,
-            rdata_text=safe_decode(getattr(current, 'rdata', '')),
-        ))
+        records.append(
+            DnsResourceRecord(
+                name=normalize_name(getattr(current, 'rrname', b'')),
+                rtype=int(getattr(current, 'type', 0)),
+                rclass=int(getattr(current, 'rclass', 0)),
+                ttl=int(getattr(current, 'ttl', 0))
+                if getattr(current, 'ttl', None) is not None
+                else None,
+                rdata_text=safe_decode(getattr(current, 'rdata', '')),
+            )
+        )
         next_layer = getattr(current, 'payload', None)
         current = next_layer if isinstance(next_layer, DNSRR) else None
 
@@ -80,11 +81,13 @@ def parse_dns_like_record(packet: Packet) -> DnsRecord:
     for _ in range(qdcount):
         if not isinstance(current_q, DNSQR):
             break
-        questions.append(DnsQuestion(
-            name=normalize_name(getattr(current_q, 'qname', b'')),
-            qtype=int(getattr(current_q, 'qtype', 0)),
-            qclass=int(getattr(current_q, 'qclass', 0)),
-        ))
+        questions.append(
+            DnsQuestion(
+                name=normalize_name(getattr(current_q, 'qname', b'')),
+                qtype=int(getattr(current_q, 'qtype', 0)),
+                qclass=int(getattr(current_q, 'qclass', 0)),
+            )
+        )
         next_q = getattr(current_q, 'payload', None)
         current_q = next_q if isinstance(next_q, DNSQR) else None
 
@@ -130,7 +133,6 @@ class DnsParser(BaseParser):
         direction = 'response' if record.is_response else 'query'
 
         summary = (
-            f'DNS {direction} {qname} {qtype}'
-            f' rcode={rcode} answers={len(record.answers)}'
+            f'DNS {direction} {qname} {qtype} rcode={rcode} answers={len(record.answers)}'
         )
         return ParsedEvent(kind=self.kind, summary=summary, data=record)

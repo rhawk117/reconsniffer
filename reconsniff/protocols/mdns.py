@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from scapy.layers.dns import DNS
 
 from reconsniff.models.core import PacketContext, PacketKind, ParsedEvent
@@ -7,11 +5,10 @@ from reconsniff.models.dns import MdnsRecord
 from reconsniff.protocols.base import BaseParser
 from reconsniff.protocols.dns import parse_dns_like_record
 
-# DNS record types we care about for mDNS service discovery
-_RTYPE_A     = 1
-_RTYPE_PTR   = 12
-_RTYPE_SRV   = 33
-_RTYPE_AAAA  = 28
+_RTYPE_A = 1
+_RTYPE_PTR = 12
+_RTYPE_SRV = 33
+_RTYPE_AAAA = 28
 
 
 class MdnsParser(BaseParser):
@@ -36,8 +33,6 @@ class MdnsParser(BaseParser):
             name_lower = rr.name.lower()
 
             if rr.rtype == _RTYPE_PTR:
-                # PTR rrname is the service type (_http._tcp.local),
-                # rdata is the service instance name (My Device._http._tcp.local)
                 if name_lower.endswith(('._tcp.local', '._udp.local')):
                     service_types.add(rr.name)
                     instance = rr.rdata_text.rstrip('.')
@@ -50,7 +45,6 @@ class MdnsParser(BaseParser):
                     addresses.add(rr.rdata_text)
 
             elif rr.rtype == _RTYPE_SRV:
-                # rdata_text is "priority weight port target"
                 parts = rr.rdata_text.split()
                 if len(parts) >= 4:
                     hostnames.add(parts[3].rstrip('.'))

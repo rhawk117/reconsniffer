@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from scapy.layers.dhcp import BOOTP, DHCP
 from scapy.layers.dhcp6 import (
     DHCP6,
@@ -19,8 +17,6 @@ from scapy.layers.dhcp6 import (
 from reconsniff.models.core import PacketContext, PacketKind, ParsedEvent
 from reconsniff.models.dhcp import Dhcpv4Record, Dhcpv6Record
 from reconsniff.protocols.base import BaseParser
-
-# ── DHCPv4 ──────────────────────────────────────────────────────────────────
 
 _DHCPV4_MSG_TYPES: dict[int, str] = {
     1: 'DISCOVER',
@@ -59,19 +55,20 @@ class Dhcpv4Parser(BaseParser):
 
     def matches(self, context: PacketContext) -> bool:
         return (
-            context.is_udp
-            and BOOTP in context.raw_packet
-            and DHCP in context.raw_packet
+            context.is_udp and BOOTP in context.raw_packet and DHCP in context.raw_packet
         )
 
     def parse(self, context: PacketContext) -> ParsedEvent:
         bootp = context.raw_packet[BOOTP]
-        opts  = _parse_dhcpv4_options(context.raw_packet[DHCP])
+        opts = _parse_dhcpv4_options(context.raw_packet[DHCP])
 
-        raw_msg_type  = opts.get('message-type')
-        msg_type_int  = int(raw_msg_type) if isinstance(raw_msg_type, int) else None
-        msg_type      = _DHCPV4_MSG_TYPES.get(msg_type_int, str(msg_type_int)) \
-            if msg_type_int is not None else None
+        raw_msg_type = opts.get('message-type')
+        msg_type_int = int(raw_msg_type) if isinstance(raw_msg_type, int) else None
+        msg_type = (
+            _DHCPV4_MSG_TYPES.get(msg_type_int, str(msg_type_int))
+            if msg_type_int is not None
+            else None
+        )
 
         record = Dhcpv4Record(
             message_type=msg_type,
@@ -81,24 +78,26 @@ class Dhcpv4Parser(BaseParser):
             your_ip=str(bootp.yiaddr),
             server_ip=str(bootp.siaddr),
             relay_ip=str(bootp.giaddr),
-            hostname=str(opts['hostname'])
-                if opts.get('hostname') is not None else None,
+            hostname=str(opts['hostname']) if opts.get('hostname') is not None else None,
             requested_ip=str(opts['requested_addr'])
-                if opts.get('requested_addr') is not None else None,
+            if opts.get('requested_addr') is not None
+            else None,
             server_identifier=str(opts['server_id'])
-                if opts.get('server_id') is not None else None,
+            if opts.get('server_id') is not None
+            else None,
             parameter_request_list=_int_list(opts.get('param_req_list')),
             vendor_class_id=str(opts['vendor_class_id'])
-                if opts.get('vendor_class_id') is not None else None,
-            domain_name=str(opts['domain'])
-                if opts.get('domain') is not None else None,
+            if opts.get('vendor_class_id') is not None
+            else None,
+            domain_name=str(opts['domain']) if opts.get('domain') is not None else None,
             router_list=_ip_list(opts.get('router')),
             dns_servers=_ip_list(opts.get('name_server')),
             lease_time_seconds=int(opts['lease_time'])
-                if isinstance(opts.get('lease_time'), int) else None,
+            if isinstance(opts.get('lease_time'), int)
+            else None,
         )
 
-        xid   = f'0x{record.transaction_id:08x}'
+        xid = f'0x{record.transaction_id:08x}'
         parts = [f'DHCPv4 {record.message_type or "unknown"} xid={xid}']
         if record.client_mac:
             parts.append(f'mac={record.client_mac}')
@@ -110,18 +109,16 @@ class Dhcpv4Parser(BaseParser):
         return ParsedEvent(kind=self.kind, summary=' '.join(parts), data=record)
 
 
-# ── DHCPv6 ──────────────────────────────────────────────────────────────────
-
 _DHCPV6_MSG_TYPES: dict[int, str] = {
-    1:  'SOLICIT',
-    2:  'ADVERTISE',
-    3:  'REQUEST',
-    4:  'CONFIRM',
-    5:  'RENEW',
-    6:  'REBIND',
-    7:  'REPLY',
-    8:  'RELEASE',
-    9:  'DECLINE',
+    1: 'SOLICIT',
+    2: 'ADVERTISE',
+    3: 'REQUEST',
+    4: 'CONFIRM',
+    5: 'RENEW',
+    6: 'REBIND',
+    7: 'REPLY',
+    8: 'RELEASE',
+    9: 'DECLINE',
     10: 'RECONFIGURE',
     11: 'INFORMATION-REQUEST',
     12: 'RELAY-FORW',
@@ -162,22 +159,26 @@ class Dhcpv6Parser(BaseParser):
 
     def parse(self, context: PacketContext) -> ParsedEvent:
         packet = context.raw_packet
-        base   = packet[DHCP6]
+        base = packet[DHCP6]
 
-        msg_type_int   = int(getattr(base, 'msgtype', 0))
-        transaction_id = int(getattr(base, 'trid', 0)) \
-            if getattr(base, 'trid', None) is not None else None
+        msg_type_int = int(getattr(base, 'msgtype', 0))
+        transaction_id = (
+            int(getattr(base, 'trid', 0))
+            if getattr(base, 'trid', None) is not None
+            else None
+        )
 
         client_duid = _duid_to_str(
             getattr(packet[DHCP6OptClientId], 'duid', None)
-            if DHCP6OptClientId in packet else None
+            if DHCP6OptClientId in packet
+            else None
         )
         server_duid = _duid_to_str(
             getattr(packet[DHCP6OptServerId], 'duid', None)
-            if DHCP6OptServerId in packet else None
+            if DHCP6OptServerId in packet
+            else None
         )
 
-        # IA_NA: ianaopts is a PacketListField containing embedded option objects
         ia_na_addresses: list[str] = []
         for ia_na in _walk_payload(base, DHCP6OptIA_NA):
             for ia_addr in getattr(ia_na, 'ianaopts', []):
@@ -186,47 +187,42 @@ class Dhcpv6Parser(BaseParser):
                     if addr:
                         ia_na_addresses.append(str(addr))
 
-        # IA_PD: iapdopts is a PacketListField containing embedded option objects
         ia_pd_prefixes: list[str] = []
         for ia_pd in _walk_payload(base, DHCP6OptIA_PD):
             for ia_pfx in getattr(ia_pd, 'iapdopts', []):
                 if isinstance(ia_pfx, DHCP6OptIAPrefix):
                     prefix = getattr(ia_pfx, 'prefix', None)
-                    plen   = getattr(ia_pfx, 'plen', None)   # field is 'plen', not 'prefixlen'
+                    plen = getattr(ia_pfx, 'plen', None)
                     if prefix and plen is not None:
                         ia_pd_prefixes.append(f'{prefix}/{plen}')
 
-        # DNS recursive name servers (option 23)
         dns_servers: tuple[str, ...] = ()
         if DHCP6OptDNSServers in packet:
             raw = getattr(packet[DHCP6OptDNSServers], 'dnsservers', [])
             dns_servers = tuple(str(a) for a in raw if a)
 
-        # Domain search list (option 24) — field is 'dnsdomains' in this scapy version
         domain_search: tuple[str, ...] = ()
         if DHCP6OptDNSDomains in packet:
             raw = getattr(packet[DHCP6OptDNSDomains], 'dnsdomains', [])
             domain_search = tuple(str(d).rstrip('.') for d in raw if d)
 
-        # Elapsed time in hundredths of a second (option 8)
         elapsed_time: int | None = None
         if DHCP6OptElapsedTime in packet:
             elapsed_time = int(getattr(packet[DHCP6OptElapsedTime], 'elapsedtime', 0))
 
-        # Client FQDN (option 39)
         fqdn: str | None = None
         if DHCP6OptClientFQDN in packet:
             raw_fqdn = getattr(packet[DHCP6OptClientFQDN], 'fqdn', None)
             if raw_fqdn:
                 fqdn = str(raw_fqdn).rstrip('.')
 
-        # Vendor class (option 16)
         vendor_class: tuple[str, ...] = ()
         if DHCP6OptVendorClass in packet:
             raw = getattr(packet[DHCP6OptVendorClass], 'vcdata', [])
             vendor_class = tuple(
                 v.decode('utf-8', errors='replace') if isinstance(v, bytes) else str(v)
-                for v in raw if v
+                for v in raw
+                if v
             )
 
         record = Dhcpv6Record(
@@ -244,8 +240,8 @@ class Dhcpv6Parser(BaseParser):
         )
 
         msg_name = _DHCPV6_MSG_TYPES.get(msg_type_int, f'type={msg_type_int}')
-        trx      = f'0x{transaction_id:06x}' if transaction_id is not None else '(none)'
-        parts    = [f'DHCPv6 {msg_name} trx={trx}']
+        trx = f'0x{transaction_id:06x}' if transaction_id is not None else '(none)'
+        parts = [f'DHCPv6 {msg_name} trx={trx}']
         if record.client_duid:
             parts.append(f'client={record.client_duid}')
         if record.ia_na_addresses:

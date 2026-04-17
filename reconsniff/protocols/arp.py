@@ -35,8 +35,7 @@ class ArpParser(BaseParser):
 
         is_probe = sender_ip == '0.0.0.0'
         is_announcement = (
-            sender_ip == target_ip
-            or target_mac.lower() == 'ff:ff:ff:ff:ff:ff'
+            sender_ip == target_ip or target_mac.lower() == 'ff:ff:ff:ff:ff:ff'
         )
 
         record = ArpRecord(

@@ -14,7 +14,6 @@ _OPCODE_NAMES: dict[int, str] = {
     8: 'REFRESH',
 }
 
-# Last byte of the decoded NetBIOS name indicates the service type.
 _NAME_TYPE_LABELS: dict[int, str] = {
     0x00: 'workstation',
     0x03: 'messenger',
@@ -34,7 +33,6 @@ def _decode_netbios_name(raw: bytes) -> tuple[str, int]:
     Returns (decoded_name, name_type) where name_type is the last byte of
     the 16-character decoded name, which indicates the service type.
     """
-    # Format: length_byte(0x20) + 32 encoded bytes + null terminator
     if len(raw) < 33 or raw[0] != 0x20:
         return raw.decode('utf-8', errors='replace').strip('\x00'), 0
 
@@ -42,21 +40,20 @@ def _decode_netbios_name(raw: bytes) -> tuple[str, int]:
     decoded: list[int] = []
     for i in range(0, 32, 2):
         high = encoded[i] - 0x41
-        low  = encoded[i + 1] - 0x41
+        low = encoded[i + 1] - 0x41
         decoded.append((high << 4) | low)
 
     name_type = decoded[15]
-    # Bytes 0-14 are the name, padded with spaces (0x20)
     name = bytes(decoded[:15]).decode('ascii', errors='replace').rstrip()
     return name, name_type
 
 
 def _extract_nm_flags(nm_flags_raw: int) -> dict[str, bool]:
     return {
-        'aa':        bool(nm_flags_raw & 0x40),  # Authoritative Answer
-        'tc':        bool(nm_flags_raw & 0x20),  # Truncated
-        'rd':        bool(nm_flags_raw & 0x10),  # Recursion Desired
-        'ra':        bool(nm_flags_raw & 0x08),  # Recursion Available
+        'aa': bool(nm_flags_raw & 0x40),  # Authoritative Answer
+        'tc': bool(nm_flags_raw & 0x20),  # Truncated
+        'rd': bool(nm_flags_raw & 0x10),  # Recursion Desired
+        'ra': bool(nm_flags_raw & 0x08),  # Recursion Available
         'broadcast': bool(nm_flags_raw & 0x01),
     }
 
@@ -75,13 +72,12 @@ class NbnsParser(BaseParser):
         header = context.raw_packet[NBNSHeader]
 
         is_response = bool(int(getattr(header, 'RESPONSE', 0)))
-        opcode      = int(getattr(header, 'OPCODE', 0))
-        rcode       = int(getattr(header, 'RCODE', 0))
-        nm_flags    = _extract_nm_flags(int(getattr(header, 'NM_FLAGS', 0)))
-        qdcount     = int(getattr(header, 'QDCOUNT', 0))
-        ancount     = int(getattr(header, 'ANCOUNT', 0))
+        opcode = int(getattr(header, 'OPCODE', 0))
+        rcode = int(getattr(header, 'RCODE', 0))
+        nm_flags = _extract_nm_flags(int(getattr(header, 'NM_FLAGS', 0)))
+        qdcount = int(getattr(header, 'QDCOUNT', 0))
+        ancount = int(getattr(header, 'ANCOUNT', 0))
 
-        # Walk the payload chain, collecting questions then answers
         questions: list[NbnsQuestion] = []
         answers: list[str] = []
         current = getattr(header, 'payload', None)
@@ -93,12 +89,14 @@ class NbnsParser(BaseParser):
             if isinstance(raw_name, str):
                 raw_name = raw_name.encode('latin-1', errors='replace')
             name, name_type = _decode_netbios_name(raw_name)
-            questions.append(NbnsQuestion(
-                decoded_name=name,
-                name_type=name_type,
-                qtype=int(getattr(current, 'QUESTION_TYPE', 0)),
-                qclass=int(getattr(current, 'QUESTION_CLASS', 0)),
-            ))
+            questions.append(
+                NbnsQuestion(
+                    decoded_name=name,
+                    name_type=name_type,
+                    qtype=int(getattr(current, 'QUESTION_TYPE', 0)),
+                    qclass=int(getattr(current, 'QUESTION_CLASS', 0)),
+                )
+            )
             current = getattr(current, 'payload', None)
 
         for _ in range(ancount):
@@ -121,8 +119,8 @@ class NbnsParser(BaseParser):
         )
 
         opcode_name = _OPCODE_NAMES.get(opcode, f'opcode={opcode}')
-        direction   = 'response' if is_response else 'request'
-        first_name  = questions[0].decoded_name if questions else None
+        direction = 'response' if is_response else 'request'
+        first_name = questions[0].decoded_name if questions else None
 
         parts = [f'NBNS {opcode_name} {direction}']
         if first_name:

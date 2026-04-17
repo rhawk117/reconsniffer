@@ -4,6 +4,7 @@ All parsing operates directly on the raw TCP payload bytes — no third-party
 crypto library is required. Certificate field extraction (subject/issuer/SAN)
 is left as None; it requires a DER/ASN.1 library such as `cryptography`.
 """
+
 from __future__ import annotations
 
 from reconsniff.models.core import PacketContext, PacketKind, ParsedEvent
@@ -20,7 +21,7 @@ _CONTENT_HANDSHAKE = 0x16
 
 _HS_CLIENT_HELLO = 0x01
 _HS_SERVER_HELLO = 0x02
-_HS_CERTIFICATE  = 0x0B
+_HS_CERTIFICATE = 0x0B
 
 _TLS_VERSIONS: dict[int, str] = {
     0x0301: 'TLS 1.0',
@@ -29,24 +30,28 @@ _TLS_VERSIONS: dict[int, str] = {
     0x0304: 'TLS 1.3',
 }
 
-_EXT_SNI                  = 0x0000
-_EXT_SUPPORTED_GROUPS     = 0x000A
+_EXT_SNI = 0x0000
+_EXT_SUPPORTED_GROUPS = 0x000A
 _EXT_SIGNATURE_ALGORITHMS = 0x000D
-_EXT_ALPN                 = 0x0010
+_EXT_ALPN = 0x0010
 
 # ── Byte reading helpers ──────────────────────────────────────────────────────
+
 
 def _u8(data: bytes, off: int) -> int:
     return data[off]
 
+
 def _u16(data: bytes, off: int) -> int:
-    return int.from_bytes(data[off:off + 2], 'big')
+    return int.from_bytes(data[off : off + 2], 'big')
+
 
 def _u24(data: bytes, off: int) -> int:
-    return int.from_bytes(data[off:off + 3], 'big')
+    return int.from_bytes(data[off : off + 3], 'big')
 
 
 # ── Shared TLS record detection ───────────────────────────────────────────────
+
 
 def _get_handshake_type(payload: bytes) -> int | None:
     """Return the TLS handshake message type byte, or None if the payload is
@@ -62,16 +67,17 @@ def _get_handshake_type(payload: bytes) -> int | None:
 
 # ── Extension parsing ─────────────────────────────────────────────────────────
 
+
 def _parse_extensions(data: bytes) -> dict[int, bytes]:
     exts: dict[int, bytes] = {}
     off = 0
     while off + 4 <= len(data):
         ext_type = _u16(data, off)
-        ext_len  = _u16(data, off + 2)
+        ext_len = _u16(data, off + 2)
         off += 4
         if off + ext_len > len(data):
             break
-        exts[ext_type] = data[off:off + ext_len]
+        exts[ext_type] = data[off : off + ext_len]
         off += ext_len
     return exts
 
@@ -83,7 +89,7 @@ def _extract_sni(ext_data: bytes) -> str | None:
     name_len = _u16(ext_data, 3)
     if 5 + name_len > len(ext_data):
         return None
-    return ext_data[5:5 + name_len].decode('ascii', errors='replace')
+    return ext_data[5 : 5 + name_len].decode('ascii', errors='replace')
 
 
 def _extract_alpn(ext_data: bytes) -> tuple[str, ...]:
@@ -93,10 +99,11 @@ def _extract_alpn(ext_data: bytes) -> tuple[str, ...]:
     protos: list[str] = []
     off, end = 2, 2 + list_len
     while off < end and off + 1 <= len(ext_data):
-        proto_len = _u8(ext_data, off); off += 1
+        proto_len = _u8(ext_data, off)
+        off += 1
         if off + proto_len > len(ext_data):
             break
-        protos.append(ext_data[off:off + proto_len].decode('ascii', errors='replace'))
+        protos.append(ext_data[off : off + proto_len].decode('ascii', errors='replace'))
         off += proto_len
     return tuple(protos)
 
@@ -121,18 +128,28 @@ def _read_extensions(
     if pos + 2 > len(payload):
         return None, (), (), ()
 
-    ext_total = _u16(payload, pos); pos += 2
-    exts      = _parse_extensions(payload[pos:pos + ext_total])
+    ext_total = _u16(payload, pos)
+    pos += 2
+    exts = _parse_extensions(payload[pos : pos + ext_total])
 
-    sni      = _extract_sni(exts[_EXT_SNI])                   if _EXT_SNI in exts                  else None
-    alpn     = _extract_alpn(exts[_EXT_ALPN])                 if _EXT_ALPN in exts                 else ()
-    groups   = _extract_u16_list(exts[_EXT_SUPPORTED_GROUPS]) if _EXT_SUPPORTED_GROUPS in exts      else ()
-    sig_algs = _extract_u16_list(exts[_EXT_SIGNATURE_ALGORITHMS]) if _EXT_SIGNATURE_ALGORITHMS in exts else ()
+    sni = _extract_sni(exts[_EXT_SNI]) if _EXT_SNI in exts else None
+    alpn = _extract_alpn(exts[_EXT_ALPN]) if _EXT_ALPN in exts else ()
+    groups = (
+        _extract_u16_list(exts[_EXT_SUPPORTED_GROUPS])
+        if _EXT_SUPPORTED_GROUPS in exts
+        else ()
+    )
+    sig_algs = (
+        _extract_u16_list(exts[_EXT_SIGNATURE_ALGORITHMS])
+        if _EXT_SIGNATURE_ALGORITHMS in exts
+        else ()
+    )
 
     return sni, alpn, groups, sig_algs
 
 
 # ── ClientHello ───────────────────────────────────────────────────────────────
+
 
 def _parse_client_hello(payload: bytes) -> TlsClientHelloRecord:
     # Payload layout:
@@ -153,26 +170,49 @@ def _parse_client_hello(payload: bytes) -> TlsClientHelloRecord:
     pos = 9
 
     if len(payload) < pos + 34:
-        return TlsClientHelloRecord(record_version=record_version, client_version=None,
-            sni=None, alpn_protocols=(), cipher_suites=(),
-            supported_groups=(), signature_algorithms=(), ja3_input=None)
+        return TlsClientHelloRecord(
+            record_version=record_version,
+            client_version=None,
+            sni=None,
+            alpn_protocols=(),
+            cipher_suites=(),
+            supported_groups=(),
+            signature_algorithms=(),
+            ja3_input=None,
+        )
 
     client_version = _TLS_VERSIONS.get(_u16(payload, pos))
     pos += 2 + 32  # version + random
 
     if pos + 1 > len(payload):
-        return TlsClientHelloRecord(record_version=record_version, client_version=client_version,
-            sni=None, alpn_protocols=(), cipher_suites=(),
-            supported_groups=(), signature_algorithms=(), ja3_input=None)
+        return TlsClientHelloRecord(
+            record_version=record_version,
+            client_version=client_version,
+            sni=None,
+            alpn_protocols=(),
+            cipher_suites=(),
+            supported_groups=(),
+            signature_algorithms=(),
+            ja3_input=None,
+        )
 
-    session_id_len = _u8(payload, pos); pos += 1 + session_id_len
+    session_id_len = _u8(payload, pos)
+    pos += 1 + session_id_len
 
     if pos + 2 > len(payload):
-        return TlsClientHelloRecord(record_version=record_version, client_version=client_version,
-            sni=None, alpn_protocols=(), cipher_suites=(),
-            supported_groups=(), signature_algorithms=(), ja3_input=None)
+        return TlsClientHelloRecord(
+            record_version=record_version,
+            client_version=client_version,
+            sni=None,
+            alpn_protocols=(),
+            cipher_suites=(),
+            supported_groups=(),
+            signature_algorithms=(),
+            ja3_input=None,
+        )
 
-    cs_len = _u16(payload, pos); pos += 2
+    cs_len = _u16(payload, pos)
+    pos += 2
     cipher_suites = tuple(
         _u16(payload, pos + i * 2)
         for i in range(cs_len // 2)
@@ -181,11 +221,19 @@ def _parse_client_hello(payload: bytes) -> TlsClientHelloRecord:
     pos += cs_len
 
     if pos + 1 > len(payload):
-        return TlsClientHelloRecord(record_version=record_version, client_version=client_version,
-            sni=None, alpn_protocols=(), cipher_suites=cipher_suites,
-            supported_groups=(), signature_algorithms=(), ja3_input=None)
+        return TlsClientHelloRecord(
+            record_version=record_version,
+            client_version=client_version,
+            sni=None,
+            alpn_protocols=(),
+            cipher_suites=cipher_suites,
+            supported_groups=(),
+            signature_algorithms=(),
+            ja3_input=None,
+        )
 
-    comp_len = _u8(payload, pos); pos += 1 + comp_len
+    comp_len = _u8(payload, pos)
+    pos += 1 + comp_len
 
     sni, alpn, groups, sig_algs = _read_extensions(payload, pos)
 
@@ -203,28 +251,43 @@ def _parse_client_hello(payload: bytes) -> TlsClientHelloRecord:
 
 # ── ServerHello ───────────────────────────────────────────────────────────────
 
+
 def _parse_server_hello(payload: bytes) -> TlsServerHelloRecord:
     record_version = _TLS_VERSIONS.get(_u16(payload, 1))
     pos = 9
 
     if len(payload) < pos + 34:
-        return TlsServerHelloRecord(selected_version=record_version,
-            selected_cipher_suite=None, selected_alpn=None, ja3s_input=None)
+        return TlsServerHelloRecord(
+            selected_version=record_version,
+            selected_cipher_suite=None,
+            selected_alpn=None,
+            ja3s_input=None,
+        )
 
     server_version = _TLS_VERSIONS.get(_u16(payload, pos))
     pos += 2 + 32  # version + random
 
     if pos + 1 > len(payload):
-        return TlsServerHelloRecord(selected_version=server_version or record_version,
-            selected_cipher_suite=None, selected_alpn=None, ja3s_input=None)
+        return TlsServerHelloRecord(
+            selected_version=server_version or record_version,
+            selected_cipher_suite=None,
+            selected_alpn=None,
+            ja3s_input=None,
+        )
 
-    session_id_len = _u8(payload, pos); pos += 1 + session_id_len
+    session_id_len = _u8(payload, pos)
+    pos += 1 + session_id_len
 
     if pos + 3 > len(payload):
-        return TlsServerHelloRecord(selected_version=server_version or record_version,
-            selected_cipher_suite=None, selected_alpn=None, ja3s_input=None)
+        return TlsServerHelloRecord(
+            selected_version=server_version or record_version,
+            selected_cipher_suite=None,
+            selected_alpn=None,
+            ja3s_input=None,
+        )
 
-    cipher_suite = _u16(payload, pos); pos += 2
+    cipher_suite = _u16(payload, pos)
+    pos += 2
     pos += 1  # compression method
 
     _, alpn, _, _ = _read_extensions(payload, pos)
@@ -240,27 +303,37 @@ def _parse_server_hello(payload: bytes) -> TlsServerHelloRecord:
 
 # ── Certificate ───────────────────────────────────────────────────────────────
 
+
 def _parse_certificate(payload: bytes) -> TlsCertificateRecord:
     # Body: 3-byte total list length, then per-cert: 3-byte length + DER data
     pos = 9
     if len(payload) < pos + 3:
-        return TlsCertificateRecord(certificate_count=0, subject=None, issuer=None,
-            serial_number=None, not_before=None, not_after=None,
-            san_dns_names=(), san_ip_addresses=())
+        return TlsCertificateRecord(
+            certificate_count=0,
+            subject=None,
+            issuer=None,
+            serial_number=None,
+            not_before=None,
+            not_after=None,
+            san_dns_names=(),
+            san_ip_addresses=(),
+        )
 
-    cert_list_len = _u24(payload, pos); pos += 3
-    cert_end      = pos + cert_list_len
-    cert_count    = 0
+    cert_list_len = _u24(payload, pos)
+    pos += 3
+    cert_end = pos + cert_list_len
+    cert_count = 0
 
     while pos + 3 <= cert_end and pos + 3 <= len(payload):
-        cert_len = _u24(payload, pos); pos += 3 + cert_len
+        cert_len = _u24(payload, pos)
+        pos += 3 + cert_len
         cert_count += 1
         if cert_count >= 20:
             break
 
     return TlsCertificateRecord(
         certificate_count=cert_count,
-        subject=None,         # requires an ASN.1/DER library to decode
+        subject=None,  # requires an ASN.1/DER library to decode
         issuer=None,
         serial_number=None,
         not_before=None,
@@ -272,6 +345,7 @@ def _parse_certificate(payload: bytes) -> TlsCertificateRecord:
 
 # ── Parser classes ────────────────────────────────────────────────────────────
 
+
 class TlsClientHelloParser(BaseParser):
     kind = PacketKind.TLS_CLIENT_HELLO
 
@@ -279,7 +353,7 @@ class TlsClientHelloParser(BaseParser):
         return _get_handshake_type(context.payload_bytes) == _HS_CLIENT_HELLO
 
     def parse(self, context: PacketContext) -> ParsedEvent:
-        record  = _parse_client_hello(context.payload_bytes)
+        record = _parse_client_hello(context.payload_bytes)
         version = record.client_version or record.record_version or 'TLS ?'
 
         parts = [f'TLS ClientHello {version}']
@@ -299,7 +373,7 @@ class TlsServerHelloParser(BaseParser):
         return _get_handshake_type(context.payload_bytes) == _HS_SERVER_HELLO
 
     def parse(self, context: PacketContext) -> ParsedEvent:
-        record  = _parse_server_hello(context.payload_bytes)
+        record = _parse_server_hello(context.payload_bytes)
         version = record.selected_version or 'TLS ?'
 
         parts = [f'TLS ServerHello {version}']
@@ -318,6 +392,6 @@ class TlsCertificateParser(BaseParser):
         return _get_handshake_type(context.payload_bytes) == _HS_CERTIFICATE
 
     def parse(self, context: PacketContext) -> ParsedEvent:
-        record  = _parse_certificate(context.payload_bytes)
+        record = _parse_certificate(context.payload_bytes)
         summary = f'TLS Certificate count={record.certificate_count}'
         return ParsedEvent(kind=self.kind, summary=summary, data=record)
