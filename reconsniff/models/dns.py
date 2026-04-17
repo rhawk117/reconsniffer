@@ -50,7 +50,8 @@ class LlmnrRecord:
 
 @dataclass(slots=True, frozen=True)
 class NbnsQuestion:
-    encoded_name: str
+    decoded_name: str
+    name_type: int       # last byte of the encoded name — indicates service type
     qtype: int
     qclass: int
 
@@ -61,6 +62,7 @@ class NbnsRecord:
     is_response: bool
     opcode: int
     rcode: int
+    nm_flags: dict[str, bool]   # aa, tc, rd, ra, broadcast
     questions: tuple[NbnsQuestion, ...]
-    answers: tuple[str, ...]
+    answers: tuple[str, ...]    # resolved IP addresses from answer records
     node_status_names: tuple[str, ...]

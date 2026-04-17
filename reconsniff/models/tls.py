@@ -23,6 +23,7 @@ class TlsServerHelloRecord:
 
 @dataclass(slots=True, frozen=True)
 class TlsCertificateRecord:
+    certificate_count: int
     subject: str | None
     issuer: str | None
     serial_number: str | None

@@ -43,7 +43,7 @@ def _json_format(record: Any) -> str:
             'type': exc_type.__name__ if exc_type else None,
             'value': str(exc_value) if exc_value else None,
         }
-    return json.dumps(entry, default=str) + '\n'
+    return json.dumps(entry, default=str).replace('{', '{{').replace('}', '}}') + '\n'
 
 
 def configure_logging(options: CaptureOptions) -> None:
@@ -228,7 +228,7 @@ def build_capture_options() -> CaptureOptions:
         print(
             json.dumps(
                 {
-                    'interface': options.interface or '<default>',
+                    'interface': options.interface or '(default)',
                     'output': str(options.output_path),
                     'log_level': options.log_level,
                     'excluded_protocols': sorted(options.excluded_protocols),
@@ -287,7 +287,7 @@ def run_capture(options: CaptureOptions) -> int:
                 signal.signal(sig_val, _handle_signal)
 
     startup_meta: dict[str, Any] = {
-        'interface': options.interface or '<default>',
+        'interface': options.interface or '(default)',
         'output': str(options.output_path),
         'log_level': options.log_level,
         'excluded_protocols': sorted(options.excluded_protocols),

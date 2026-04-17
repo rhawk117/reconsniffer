@@ -65,9 +65,12 @@ class CaptureEngine:
 
     def start(self) -> None:
         def _handle(packet: Any) -> None:
-            context = packet_to_context(packet)
-            for event in self.registry.parse_all(context):
-                self.on_event(context, event)
+            try:
+                context = packet_to_context(packet)
+                for event in self.registry.parse_all(context):
+                    self.on_event(context, event)
+            except Exception:
+                pass
 
         self._sniffer = AsyncSniffer(
             iface=self.interface,

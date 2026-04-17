@@ -19,7 +19,7 @@ passive network reconnaissance sniffer for local network security research. capt
 
 ## requirements
 
-- Python >= 3.13
+- Python >= 3.14
 - root / administrator privileges for raw packet capture
 
 ## installation
