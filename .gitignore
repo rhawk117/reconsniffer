@@ -5,6 +5,7 @@ __pycache__/
 .ref
 # C extensions
 *.so
+.logs
 
 # Distribution / packaging
 .Python
